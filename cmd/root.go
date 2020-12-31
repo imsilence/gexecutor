@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,13 +12,14 @@ import (
 
 func main() {
 	go func() {
-		<-time.After(5 * time.Second)
+		<-time.After(15 * time.Second)
 		fmt.Println(exec.Command("kill", strconv.Itoa(os.Getpid())).Output())
 
 	}()
 	g := gexecutor.NewGexecutor()
 	g.Run(func(*gexecutor.Gexecutor) error {
-		return errors.New("xxx")
+		<-time.After(5 * time.Second)
+		return nil
 	})
 
 	g.Begin()

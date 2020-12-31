@@ -33,6 +33,11 @@ func NewGexecutor() *Gexecutor {
 	}
 }
 
+// Ctx 获取Context
+func (g *Gexecutor) Ctx() context.Context {
+	return g.ctx
+}
+
 // Done 获取停止信号
 func (g *Gexecutor) Done() <-chan struct{} {
 	return g.ctx.Done()
