@@ -1,6 +1,7 @@
 package gexecutor
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"sync"
@@ -11,28 +12,30 @@ import (
 // Runner 运行者
 type Runner func(g *Gexecutor) error
 
-// SignalStop 退出信号
-type SignalStop struct{}
-
 // Gexecutor Goroutine执行器
 type Gexecutor struct {
 	wg sync.WaitGroup
 
-	stopCh chan SignalStop
-	errCh  chan error
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	errCh chan error
 }
 
 // NewGexecutor 构造器
 func NewGexecutor() *Gexecutor {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &Gexecutor{
-		stopCh: make(chan SignalStop, 1),
+		ctx:    ctx,
+		cancel: cancel,
 		errCh:  make(chan error, 1),
 	}
 }
 
-// StopCh 获取停止信号
-func (g *Gexecutor) StopCh() chan SignalStop {
-	return g.stopCh
+// Done 获取停止信号
+func (g *Gexecutor) Done() <-chan struct{} {
+	return g.ctx.Done()
 }
 
 // Begin 开始
@@ -47,6 +50,9 @@ func (g *Gexecutor) End() {
 
 // AddError 运行结束
 func (g *Gexecutor) AddError(err error) {
+	if err == nil {
+		return
+	}
 	g.errCh <- err
 }
 
@@ -64,7 +70,7 @@ func (g *Gexecutor) Next(d time.Duration) bool {
 	select {
 	case <-time.After(d):
 		return true
-	case <-g.stopCh:
+	case <-g.Done():
 		return false
 	}
 }
@@ -73,20 +79,17 @@ func (g *Gexecutor) Next(d time.Duration) bool {
 func (g *Gexecutor) Wait() error {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
-	for {
-		select {
-		case <-interrupt:
-			return nil
-		case err := <-g.errCh:
-			if err != nil {
-				return err
-			}
-		}
+
+	select {
+	case <-interrupt:
+		return nil
+	case err := <-g.errCh:
+		return err
 	}
 }
 
 // Quit 退出执行器
 func (g *Gexecutor) Quit() {
-	close(g.stopCh)
+	g.cancel()
 	g.wg.Wait()
 }

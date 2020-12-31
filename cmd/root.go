@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -18,7 +19,7 @@ func main() {
 	}()
 	g := gexecutor.NewGexecutor()
 	g.Run(func(*gexecutor.Gexecutor) error {
-		return nil
+		return errors.New("xxx")
 	})
 
 	g.Begin()
